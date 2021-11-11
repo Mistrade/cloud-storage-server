@@ -1,0 +1,28 @@
+{
+  "name": "server-application",
+  "version": "1.0.0",
+  "description": "server application for cloud storage project",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mistrade/cloud-storage-server.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Mistrade/cloud-storage-server/issues"
+  },
+  "homepage": "https://github.com/Mistrade/cloud-storage-server#readme",
+  "dependencies": {
+    "config": "^3.3.6",
+    "express": "^4.17.1",
+    "mongoose": "^6.0.12"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.15"
+  }
+}
