@@ -1,0 +1,4 @@
+{
+  "ServerPort": 9001,
+  "databaseConnectionLink": "mongodb+srv://AndreyChernikov:MacbookM1@cluster0.xbwyq.mongodb.net/CloudStorage?retryWrites=true&w=majority\n"
+}
