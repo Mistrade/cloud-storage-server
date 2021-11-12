@@ -74,10 +74,10 @@ router.post( '/registration',
     }
   } )
 
-router.post('/login', async (req: Request<RegistrationInput>, res: Response<LoginResponse | ResponseModel>) => {
+router.post('/', async (req: Request<RegistrationInput>, res: Response<LoginResponse | ResponseModel>) => {
   try {
     const {email, password} = req.body
-
+    console.log('Пользовать логинится: ', email)
     if(!validator.isEmail(email)){
       return res.status(400).json({message: 'Указан невалидный Email-адрес'})
     }
