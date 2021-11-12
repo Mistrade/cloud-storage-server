@@ -9,6 +9,8 @@ import config from 'config'
 interface RegistrationInput {
   email: string,
   password: string
+  name: string,
+  surname: string
 }
 
 interface LoginResponse {
@@ -40,7 +42,7 @@ const router = express.Router()
 router.post( '/registration',
   async ( req: Request<RegistrationInput>, res: Response<ResponseModel> ) => {
     try {
-      const { email, password } = req.body
+      const { email, password, name, surname } = req.body
       console.log('Регистрация нового пользователя: ', email)
 
       if(!validator.isEmail(email)){
@@ -59,9 +61,8 @@ router.post( '/registration',
         return res.status(400).json({message: passwordValidate.message || 'Указан некорректный пароль для регистрации нового пользователя.'})
       }
 
-
       const hashPassword: string = await bcrypt.hash( password, 8 )
-      const user = new User( { email, password: hashPassword } )
+      const user = new User( { email, password: hashPassword, name, surname } )
 
       await user.save()
 
