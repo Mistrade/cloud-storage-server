@@ -5,7 +5,6 @@ import { UpdateDevice, UpdateDeviceRequestModel } from '../models/UpdateDeviceRe
 export const checkDeviceInfo = async (user: UserModel) => {
   const item: UpdateDeviceRequestModel | null = await UpdateDevice.findOne( { userId: user.id } )
 
-
   if( !item ) {
 
     const updateDeviceRequest = new UpdateDevice( {
