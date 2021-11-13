@@ -8,8 +8,13 @@ const app = express()
 const PORT = config.get( 'ServerPort' )
 const mongoUrl: string = config.get( 'databaseConnectionLink' )
 
+const origin = ['http://localhost:3000']
 
-app.use( cors() )
+app.use( cors({
+  credentials: true,
+  origin
+}) )
+
 app.use( express.json() )
 app.use( '/api/auth', authRouter )
 
