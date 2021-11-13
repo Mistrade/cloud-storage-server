@@ -71,7 +71,7 @@ export const checkTokens = async ( req: Request<any>, res: Response<any>, action
   const cookie = req.headers.cookie?.split( ';' )
 
   if( !cookie?.length ) {
-    return { status: 429, message: 'Пользователь не авторизован', req, res, user: null }
+    return { status: 401, message: 'Пользователь не авторизован', req, res, user: null }
   }
 
   let accessToken = ''

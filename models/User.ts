@@ -15,8 +15,15 @@ export type UserModel = mongoose.Document & {
   refreshToken: string | null,
   avatar: string | null,
   files: Array<mongoose.Schema.Types.ObjectId>,
-  lastLogin: number | null
+  lastLogin: {
+    timestamp: number,
+    date: string
+    pattern: LastLoginPatternType
+  } | null,
+  device: mongoose.Schema.Types.ObjectId,
 }
+
+export type LastLoginPatternType = 'DD.MM.YYYY HH:MM:SS'
 
 const UserSchema = new Schema( {
   email: { type: String, required: true, unique: true },
@@ -25,7 +32,17 @@ const UserSchema = new Schema( {
   password: { type: String, required: true },
   accessToken: { type: String || null, default: null },
   refreshToken: { type: String || null, default: null },
-  lastLogin: { type: Number || null, default: null },
+  lastLogin: {
+    type: {
+      timestamp: { type: Number, required: true },
+      date: { type: String, required: true },
+      pattern: { type: String, required: true, default: 'DD.MM.YYYY HH:MM:SS' }
+    } || null, default: null
+  },
+  device: {
+    type: Schema.Types.ObjectId,
+    ref: 'Device'
+  },
   storageSpace: { type: Number, default: 100 * megabyte },
   usingSpace: { type: Number, default: 0 },
   avatar: { type: String || null, default: null },

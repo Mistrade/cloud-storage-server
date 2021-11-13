@@ -3,15 +3,14 @@ import express, { Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
 import { validateTools } from '../tools/validate'
 import validator from 'validator'
-import jwt from 'jsonwebtoken'
-import config from 'config'
-import {
-  checkTokens,
-  createAccessToken,
-  createRefreshToken,
-  setCookie
-} from '../tools/tokenActions'
+import { checkTokens } from '../tools/tokenActions'
 import { getUserInfo } from '../tools/getUserInfo'
+import { Device, DeviceModel } from '../models/Device'
+import { getDeviceInfo } from '../tools/getDeviceInfo'
+import { UpdateDevice, UpdateDeviceRequestModel } from '../models/UpdateDeviceRequest'
+import { checkDeviceInfo } from '../tools/checkDeviceInfo'
+import { clearSession } from '../tools/clearSession'
+import { createSession } from '../tools/createSession'
 
 interface RegistrationInput {
   email: string,
@@ -36,7 +35,9 @@ export interface UserDataModel {
 }
 
 interface ResponseModel {
-  message: string
+  message: string,
+  userId?: string,
+  type?: 'access-account'
 }
 
 export interface Token {
@@ -70,11 +71,22 @@ router.post( '/registration',
       if( !passwordValidate.status ) {
         return res.status( 400 ).json( { message: passwordValidate.message || 'Указан некорректный пароль для регистрации нового пользователя.' } )
       }
-
       const hashPassword: string = await bcrypt.hash( password, 8 )
-      const user = new User( { email, password: hashPassword, name, surname } )
+
+      const deviceInfo = getDeviceInfo( req, null )
+      const device = new Device( deviceInfo.data )
+      await device.save()
+
+      const user: UserModel = new User( {
+        email,
+        password: hashPassword,
+        name,
+        surname,
+        device: device.id
+      } )
 
       await user.save()
+
 
       return res.status( 200 ).json( { message: 'Поздравляем! Вы успешно зарегистрированы!' } )
     } catch (e) {
@@ -88,7 +100,7 @@ router.post( '/registration',
 router.post( '/', async ( req: Request<RegistrationInput>, res: Response<LoginResponse | ResponseModel> ) => {
   try {
     const { email, password } = req.body
-    console.log( 'Пользовать логинится: ', email )
+    console.log( 'Пользователь авторизуется: ', email )
     if( !validator.isEmail( email ) ) {
       return res.status( 400 ).json( { message: 'Указан невалидный Email-адрес' } )
     }
@@ -107,28 +119,44 @@ router.post( '/', async ( req: Request<RegistrationInput>, res: Response<LoginRe
 
     const passwordEquality = await bcrypt.compare( password, user.password )
 
-    console.log('password: ' + password)
-    console.log('passwordEquality: ', passwordEquality)
-    console.log(user.password)
-
     if( !passwordEquality ) {
       return res.status( 403 ).json( { message: 'Указаны неверный логин или пароль!' } )
     }
 
-    const token = createAccessToken( user )
-    const refreshToken = createRefreshToken( user )
+    const device: DeviceModel | null = await Device.findOne( {
+      _id: user.device
+    } )
 
-    res = setCookie( res, user ).res
+    if( !device ) {
+      await checkDeviceInfo( user )
 
-    // await user.set()
-    await User.updateOne( { email: user.email }, {
-      accessToken: token,
-      refreshToken: refreshToken
-    }, { multi: false } )
+      return res.status( 406 ).json( {
+        message: 'Вы пытаетесь зайти с неизвестного нам устройства. Пожалуйста, подтвердите что это вы!',
+        userId: user.id,
+        type: 'access-account'
+      } )
+    }
 
-    return res.status( 200 ).json( {
+    const deviceInfo = getDeviceInfo( req, device )
+
+    if( deviceInfo.needUpdate ) {
+      await checkDeviceInfo( user )
+
+      return res.status( 406 ).json( {
+        message: 'Вы пытаетесь зайти с неизвестного нам устройства или IP-адреса.\nВ целях безопасности мы просим вас подтвердить, что вход в систему выполняете именно вы.\nПожалуйста укажите повторно пароль от вашей учетной записи.',
+        userId: user.id,
+        type: 'access-account'
+      } )
+    }
+
+    const session = await createSession( res, user )
+
+    res = session.res
+
+    return res.status( session.status ).json( session.message ? { message: session.message } : {
       userData: getUserInfo( user )
     } )
+
   } catch (e) {
     console.log( e )
     return res.status( 500 ).json( {
@@ -138,6 +166,9 @@ router.post( '/', async ( req: Request<RegistrationInput>, res: Response<LoginRe
 } )
 
 router.post( '/check', async ( req: Request, res: Response<LoginResponse | ResponseModel> ) => {
+
+  //TODO Доработать функцию checkTokens, так как она не сбрасывает сессию пользователя с другого браузера
+
   const result = await checkTokens( req, res )
   res = result.res
 
@@ -145,9 +176,7 @@ router.post( '/check', async ( req: Request, res: Response<LoginResponse | Respo
     return res.status( result.status ).json( { userData: getUserInfo( result.user ) } )
   } else {
     return res.status( result.status ).json( { message: result.message } )
-
   }
-
 } )
 
 router.post( '/logout', async ( req: Request, res: Response<ResponseModel> ) => {
@@ -160,12 +189,51 @@ router.post( '/logout', async ( req: Request, res: Response<ResponseModel> ) => 
     }, { multi: false } )
   }
 
-  res.cookie( 'AccessToken', null, { maxAge: 0 } )
-  res.cookie( 'RefreshToken', null, { maxAge: 0 } )
+  res = clearSession( res )
 
   const status = result.status === 201 || result.status === 200 ? 200 : result.status
 
   return res.status( status ).json( { message: status === 200 ? 'Пользователь успешно завершил сессию.' : result.message } )
+} )
+
+router.post( '/update_device', async ( req: Request<{ userId: string, password: string }>, res ) => {
+  const { userId, password } = req.body
+
+  const user: UserModel | null = await User.findOne( { id: userId } )
+
+  if( !user ) {
+    return res.status( 403 ).json( { message: 'Пользователь не найден!' } )
+  }
+
+  const updateRequest: UpdateDeviceRequestModel | null = await UpdateDevice.findOne( { userId: user.id } )
+
+  if( !updateRequest ) {
+    return res.status( 409 ).json( { message: 'Время сессии для обновления информации об устройстве пользователя истекло.\nПожалуйста, попробуйте войти в систему снова.' } )
+  }
+
+  const passwordEquality = await bcrypt.compare( password, user.password )
+
+  if( !passwordEquality ) {
+    return res.status( 403 ).json( { message: 'Вы указали неверный пароль!' } )
+  }
+
+  const device = await Device.findOne( { id: user.device } )
+  const deviceInfo = getDeviceInfo( req, device )
+  const updating = await Device.updateOne( { id: user.device }, deviceInfo.data, { multi: false } )
+
+  if( !updating ) {
+    return res.status( 400 ).json( { message: 'Нам не удалось обновить информацию о вашем устройстве, пожалуйста попробуйте позже' } )
+  }
+
+  const session = await createSession( res, user )
+  res = session.res
+
+  return res.status( session.status ).json( session.status !== 200 ? {
+    message: session.message
+  } : {
+    userData: getUserInfo( user )
+  } )
+
 } )
 
 
