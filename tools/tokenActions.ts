@@ -94,7 +94,7 @@ export const checkTokens = async ( req: Request<any>, res: Response<any>, action
   } )
 
   if( !refreshToken ) {
-    return { status: 429, message: 'Пользователь не авторизован!', req, res, user: null }
+    return { status: 401, message: 'Пользователь не авторизован!', req, res, user: null }
   }
 
   const { email, id } = jwt.decode( refreshToken ) as Token

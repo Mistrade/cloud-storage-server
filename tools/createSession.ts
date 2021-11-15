@@ -21,6 +21,7 @@ export const createSession = async ( res: Response<any>, user: UserModel ) => {
       message: '',
       res
     }
+
   } catch (e) {
     return {
       res,

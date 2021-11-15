@@ -26,6 +26,7 @@ export const getDeviceInfo = ( req: Request<any>, device: DeviceModel | null ): 
   } )
 
   if( !hasDevice ) {
+    console.log('Пользователь зашел с неизвестного устройства/браузера: ', userAgent)
     needUpdate = true
     deviceList.push( {
       userAgent: userAgent || null,
@@ -54,7 +55,9 @@ export const getDeviceInfo = ( req: Request<any>, device: DeviceModel | null ): 
   }
 
 
+  console.log('Ip-адрес пользователя: ', userIp)
   if( !hasIp ) {
+    console.log('Пользователь зашел с неизвестного Ip-адреса: ', userIp)
     needUpdate = true
     ipAddressList.push( { ip: userIp } )
   }

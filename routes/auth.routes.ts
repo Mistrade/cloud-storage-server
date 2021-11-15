@@ -37,7 +37,7 @@ export interface UserDataModel {
 interface ResponseModel {
   message: string,
   userId?: string,
-  type?: 'access-account'
+  type?: 'access-account' | 'repeat-access-account'
 }
 
 export interface Token {
@@ -51,73 +51,71 @@ export interface Token {
 const router = express.Router()
 
 //Api-запрос на регистрацию пользователя
-router.post( '/registration',
-  async ( req: Request<RegistrationInput>, res: Response<ResponseModel> ) => {
+router.post( '/registration', async ( req: Request<RegistrationInput>, res: Response<ResponseModel> ) => {
 
-    //Пытаемся проверить данные пользователя и зарегистрировать его
-    try {
+  //Пытаемся проверить данные пользователя и зарегистрировать его
+  try {
 
-      //Получаем данные о пользователе
-      const { email, password, name, surname } = req.body
+    //Получаем данные о пользователе
+    const { email, password, name, surname } = req.body
 
-      //Выводим данные о пользователе в лог сервера
-      console.log( 'Регистрация нового пользователя: ', email )
+    //Выводим данные о пользователе в лог сервера
+    console.log( 'Регистрация нового пользователя: ', email )
 
-      //Проводим проверку email-адреса
-      if( !validator.isEmail( email ) ) {
-        return res.status( 400 ).json( { message: 'Указан невалидный Email при регистрации пользователя' } )
-      }
-
-      //Получаем пользователя из БД по полученному Email
-      const candidate: UserModel | null = await User.findOne( { email } )
-
-      //Проверяем существует ли пользователь, если не существует возвращаем ответ на фронт с статусом 400
-      if( candidate ) {
-        return res.status( 400 ).json( { message: 'Пользователь с таким Email-адресом уже существует.' } )
-      }
-
-      //Проверяем исходный (без хеша) на правила валидации
-      const passwordValidate = validateTools.checkPassword( password )
-
-      //Если пароль оказался невалидным - возвращаем ответ на фронт со статусом 400
-      if( !passwordValidate.status ) {
-        return res.status( 400 ).json( { message: passwordValidate.message || 'Указан некорректный пароль для регистрации нового пользователя.' } )
-      }
-
-      //Создаем хеш-пароль для хранения его в Базе данных
-      const hashPassword: string = await bcrypt.hash( password, 8 )
-
-      //Формируем данные об устройстве, с которого регистрируется пользователь
-      const deviceInfo = getDeviceInfo( req, null )
-      //Создаем модель устройства пользователя и сохраняем данные в Базу данных
-      const device = new Device( deviceInfo.data )
-      await device.save()
-
-      //Создаем модель пользователя со всеми необходимыми данными
-      const user: UserModel = new User( {
-        email,
-        password: hashPassword,
-        name,
-        surname,
-        device: device.id
-      } )
-
-      //Сохраняем данные пользователя (регистрируем)
-      await user.save()
-
-      //Возвращаем ответ на фронт с успешным сообщением о регистрации
-      return res.status( 200 ).json( { message: 'Поздравляем! Вы успешно зарегистрированы!' } )
-    } catch (e) {
-
-      //В случае если в блоке TRY произошла ошибка возвращаем ответ со статусом 500 и сообщением о непредвиденной ошибке
-      //Выводим ошибку в лог сервера
-      console.log( e )
-      return res.status( 500 ).json( {
-        message: 'Во время обработки регистрации нового пользователя на сервере произошла ошибка'
-      } )
+    //Проводим проверку email-адреса
+    if( !validator.isEmail( email ) ) {
+      return res.status( 400 ).json( { message: 'Указан невалидный Email при регистрации пользователя' } )
     }
-  } )
 
+    //Получаем пользователя из БД по полученному Email
+    const candidate: UserModel | null = await User.findOne( { email } )
+
+    //Проверяем существует ли пользователь, если не существует возвращаем ответ на фронт с статусом 400
+    if( candidate ) {
+      return res.status( 400 ).json( { message: 'Пользователь с таким Email-адресом уже существует.' } )
+    }
+
+    //Проверяем исходный (без хеша) на правила валидации
+    const passwordValidate = validateTools.checkPassword( password )
+
+    //Если пароль оказался невалидным - возвращаем ответ на фронт со статусом 400
+    if( !passwordValidate.status ) {
+      return res.status( 400 ).json( { message: passwordValidate.message || 'Указан некорректный пароль для регистрации нового пользователя.' } )
+    }
+
+    //Создаем хеш-пароль для хранения его в Базе данных
+    const hashPassword: string = await bcrypt.hash( password, 8 )
+
+    //Формируем данные об устройстве, с которого регистрируется пользователь
+    const deviceInfo = getDeviceInfo( req, null )
+    //Создаем модель устройства пользователя и сохраняем данные в Базу данных
+    const device = new Device( deviceInfo.data )
+    await device.save()
+
+    //Создаем модель пользователя со всеми необходимыми данными
+    const user: UserModel = new User( {
+      email,
+      password: hashPassword,
+      name,
+      surname,
+      device: device.id
+    } )
+
+    //Сохраняем данные пользователя (регистрируем)
+    await user.save()
+
+    //Возвращаем ответ на фронт с успешным сообщением о регистрации
+    return res.status( 200 ).json( { message: 'Поздравляем! Вы успешно зарегистрированы!' } )
+  } catch (e) {
+
+    //В случае если в блоке TRY произошла ошибка возвращаем ответ со статусом 500 и сообщением о непредвиденной ошибке
+    //Выводим ошибку в лог сервера
+    console.log( e )
+    return res.status( 500 ).json( {
+      message: 'Во время обработки регистрации нового пользователя на сервере произошла ошибка'
+    } )
+  }
+} )
 
 //Api-запрос для авторизации пользователя в системе
 router.post( '/', async ( req: Request<RegistrationInput>, res: Response<LoginResponse | ResponseModel> ) => {
@@ -247,7 +245,7 @@ router.post( '/check', async ( req: Request, res: Response<LoginResponse | Respo
 } )
 
 //Api-запрос на завершение сессии пользователя (logout)
-router.post( '/logout', async ( req: Request, res: Response<ResponseModel> ) => {
+router.post( '/logout', async ( req: Request, res: Response<LoginResponse | ResponseModel> ) => {
 
   //Производим попытку завершить сессию пользователя
   try {
@@ -279,7 +277,7 @@ router.post( '/logout', async ( req: Request, res: Response<ResponseModel> ) => 
 } )
 
 //Api-запрос для подтверждения пароля при добавлении нового устройства / браузера / IP-адреса к карточке пользователя
-router.post( '/update_device', async ( req: Request<{ userId: string, password: string }>, res ) => {
+router.post( '/update_device', async ( req: Request<{ userId: string, password: string }>, res: Response<LoginResponse | ResponseModel> ) => {
 
   //Производим попытку обновить список устройств / браузеров / IP-адресов пользователя
   try {
@@ -300,12 +298,15 @@ router.post( '/update_device', async ( req: Request<{ userId: string, password: 
 
     //Если такая сессия не была найдена, сообщаем о том, что сессия не была создана
     if( !updateRequest ) {
-      return res.status( 409 ).json( { message: 'Время сессии для обновления информации об устройстве пользователя истекло.\nПожалуйста, попробуйте войти в систему снова.' } )
+      return res.status( 409 ).json( { message: 'Некорректный запрос.' } )
     }
 
     //Если сессия умерла, то возвращаем ошибку 400 (Bad Request)
-    if(updateRequest.die < Date.now()){
-      return res.status(400).json({message: 'Некорректный запрос'})
+    if( updateRequest.die < Date.now() ) {
+      return res.status( 400 ).json( {
+        message: 'Время жизни сессии для подтверждения пароля - истекло.',
+        type: 'repeat-access-account'
+      } )
     }
 
     //Если сессия на обновление списка доступных точек входа существует
@@ -327,6 +328,14 @@ router.post( '/update_device', async ( req: Request<{ userId: string, password: 
     //Если данные не были успешно обновлены, возвращаем сообщение об ошибке
     if( !updating ) {
       return res.status( 400 ).json( { message: 'Нам не удалось обновить информацию о вашем устройстве, пожалуйста попробуйте позже' } )
+    }
+
+    //Создаем запрос на удаление сессии для подтверждения пароля и добавления новых точек входа
+    const deleteRequest = await UpdateDevice.findOneAndRemove( updateRequest, { multi: false } )
+
+    //Если при поиске и удалении сессии произошла ошибка, сообщаем об этом.
+    if( !deleteRequest ) {
+      return res.status( 400 ).json( { message: 'При удалении сессии на подтверждение пароля и добавление нового устройства произошла ошибка!' } )
     }
 
     //Если информация о точках входа пользователя успешно обновлена, создаем сессию пользователя

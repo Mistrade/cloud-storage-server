@@ -1,5 +1,4 @@
 import { UserModel } from '../models/User'
-import { Request } from 'express'
 import { UpdateDevice, UpdateDeviceRequestModel } from '../models/UpdateDeviceRequest'
 
 export const checkDeviceInfo = async (user: UserModel) => {
