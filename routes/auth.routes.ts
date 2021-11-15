@@ -11,6 +11,7 @@ import { UpdateDevice, UpdateDeviceRequestModel } from '../models/UpdateDeviceRe
 import { checkDeviceInfo } from '../tools/checkDeviceInfo'
 import { clearSession } from '../tools/clearSession'
 import { createSession } from '../tools/createSession'
+import { userInfo } from '../../client/src/reducers/UserReducer'
 
 interface RegistrationInput {
   email: string,
@@ -37,7 +38,7 @@ export interface UserDataModel {
 interface ResponseModel {
   message: string,
   userId?: string,
-  type?: 'access-account' | 'repeat-access-account'
+  type?: 'confirm-password' | 'repeat-confirm-password'
 }
 
 export interface Token {
@@ -155,7 +156,7 @@ router.post( '/', async ( req: Request<RegistrationInput>, res: Response<LoginRe
 
     //Если пароли не совпадают, то возвращаем запрет на авторизацию с описанием ошибки
     if( !passwordEquality ) {
-      return res.status( 403 ).json( { message: 'Указаны неверный логин или пароль!' } )
+      return res.status( 400 ).json( { message: 'Указаны неверный логин или пароль!' } )
     }
 
     //Если пароли совпадают, то получаем информацию об устройствах и IP-адресах, с которых пользователь посещал сайт
@@ -165,15 +166,15 @@ router.post( '/', async ( req: Request<RegistrationInput>, res: Response<LoginRe
 
     //Если список устройств не был найден, то проверяем сессии на добавление устройства в список устройств для текущего пользователя
     //Если сессия на подтверждение пароля не была найдена, создаем ее
-    //Возвращаем ответ со статусом 406, описанием ошибки, идентификатором пользователя и типом необходимого действия
+    //Возвращаем ответ со статусом 403, описанием ошибки, идентификатором пользователя и типом необходимого действия
     if( !device ) {
       //Тут проверка и создание сессии на подтверждение пароля
       await checkDeviceInfo( user )
 
-      return res.status( 406 ).json( {
+      return res.status( 403 ).json( {
         message: 'Вы пытаетесь зайти с неизвестного нам устройства. Пожалуйста, подтвердите что это вы!',
         userId: user.id,
-        type: 'access-account'
+        type: 'confirm-password'
       } )
     }
 
@@ -181,14 +182,14 @@ router.post( '/', async ( req: Request<RegistrationInput>, res: Response<LoginRe
     const deviceInfo = getDeviceInfo( req, device )
 
     //Если список устройств не содержит текущее устройство / Ip-адрес / браузер, то создаем сессию на подтверждение пароля
-    //Возвращаем ответ со статусом 406, описанием ошибки, идентификатором пользователя и типом необходимого действия
+    //Возвращаем ответ со статусом 403, описанием ошибки, идентификатором пользователя и типом необходимого действия
     if( deviceInfo.needUpdate ) {
       await checkDeviceInfo( user )
 
-      return res.status( 406 ).json( {
+      return res.status( 403 ).json( {
         message: 'Вы пытаетесь зайти с неизвестного нам устройства или IP-адреса.\nВ целях безопасности мы просим вас подтвердить, что вход в систему выполняете именно вы.\nПожалуйста укажите повторно пароль от вашей учетной записи.',
         userId: user.id,
-        type: 'access-account'
+        type: 'confirm-password'
       } )
     }
 
@@ -284,9 +285,10 @@ router.post( '/update_device', async ( req: Request<{ userId: string, password: 
 
     //Получаем идентификатор пользователя и пароль
     const { userId, password } = req.body
+    console.log( 'Получаем userId: ', userId )
 
     //Производим поиск пользователя в базе данных
-    const user: UserModel | null = await User.findOne( { id: userId } )
+    const user: UserModel | null = await User.findOne( { _id: userId } )
 
     //Если пользователь не найден, запрещаем операцию
     if( !user ) {
@@ -295,6 +297,10 @@ router.post( '/update_device', async ( req: Request<{ userId: string, password: 
 
     //Производим поиск сессии на подтверждение пароля и обновления списка устройств / браузеров / IP-адресов
     const updateRequest: UpdateDeviceRequestModel | null = await UpdateDevice.findOne( { userId: user.id } )
+
+    console.clear()
+    console.log( user )
+    console.log( updateRequest )
 
     //Если такая сессия не была найдена, сообщаем о том, что сессия не была создана
     if( !updateRequest ) {
@@ -305,7 +311,8 @@ router.post( '/update_device', async ( req: Request<{ userId: string, password: 
     if( updateRequest.die < Date.now() ) {
       return res.status( 400 ).json( {
         message: 'Время жизни сессии для подтверждения пароля - истекло.',
-        type: 'repeat-access-account'
+        userId: user.id,
+        type: 'repeat-confirm-password'
       } )
     }
 
@@ -327,7 +334,11 @@ router.post( '/update_device', async ( req: Request<{ userId: string, password: 
 
     //Если данные не были успешно обновлены, возвращаем сообщение об ошибке
     if( !updating ) {
-      return res.status( 400 ).json( { message: 'Нам не удалось обновить информацию о вашем устройстве, пожалуйста попробуйте позже' } )
+      return res.status( 400 ).json( {
+        message: 'Нам не удалось обновить информацию о вашем устройстве, пожалуйста попробуйте позже',
+        userId: user.id,
+        type: 'confirm-password'
+      } )
     }
 
     //Создаем запрос на удаление сессии для подтверждения пароля и добавления новых точек входа
@@ -335,7 +346,11 @@ router.post( '/update_device', async ( req: Request<{ userId: string, password: 
 
     //Если при поиске и удалении сессии произошла ошибка, сообщаем об этом.
     if( !deleteRequest ) {
-      return res.status( 400 ).json( { message: 'При удалении сессии на подтверждение пароля и добавление нового устройства произошла ошибка!' } )
+      return res.status( 400 ).json( {
+        message: 'При удалении сессии на подтверждение пароля и добавление нового устройства произошла ошибка!',
+        userId: user.id,
+        type: 'confirm-password'
+      } )
     }
 
     //Если информация о точках входа пользователя успешно обновлена, создаем сессию пользователя
