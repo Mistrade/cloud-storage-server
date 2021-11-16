@@ -99,7 +99,7 @@ router.post( '/registration', async ( req: Request<RegistrationInput>, res: Resp
       password: hashPassword,
       name,
       surname,
-      device: device.id
+      device: device._id
     } )
 
     //Сохраняем данные пользователя (регистрируем)
@@ -173,7 +173,7 @@ router.post( '/', async ( req: Request<RegistrationInput>, res: Response<LoginRe
 
       return res.status( 403 ).json( {
         message: 'Вы пытаетесь зайти с неизвестного нам устройства. Пожалуйста, подтвердите что это вы!',
-        userId: user.id,
+        userId: user._id,
         type: 'confirm-password'
       } )
     }
@@ -188,7 +188,7 @@ router.post( '/', async ( req: Request<RegistrationInput>, res: Response<LoginRe
 
       return res.status( 403 ).json( {
         message: 'Вы пытаетесь зайти с неизвестного нам устройства или IP-адреса.\nВ целях безопасности мы просим вас подтвердить, что вход в систему выполняете именно вы.\nПожалуйста укажите повторно пароль от вашей учетной записи.',
-        userId: user.id,
+        userId: user._id,
         type: 'confirm-password'
       } )
     }
@@ -296,11 +296,7 @@ router.post( '/update_device', async ( req: Request<{ userId: string, password: 
     }
 
     //Производим поиск сессии на подтверждение пароля и обновления списка устройств / браузеров / IP-адресов
-    const updateRequest: UpdateDeviceRequestModel | null = await UpdateDevice.findOne( { userId: user.id } )
-
-    console.clear()
-    console.log( user )
-    console.log( updateRequest )
+    const updateRequest: UpdateDeviceRequestModel | null = await UpdateDevice.findOne( { userId: user._id } )
 
     //Если такая сессия не была найдена, сообщаем о том, что сессия не была создана
     if( !updateRequest ) {
@@ -311,7 +307,7 @@ router.post( '/update_device', async ( req: Request<{ userId: string, password: 
     if( updateRequest.die < Date.now() ) {
       return res.status( 400 ).json( {
         message: 'Время жизни сессии для подтверждения пароля - истекло.',
-        userId: user.id,
+        userId: user._id,
         type: 'repeat-confirm-password'
       } )
     }
@@ -326,17 +322,17 @@ router.post( '/update_device', async ( req: Request<{ userId: string, password: 
     }
 
     //Получаем список точек входа, доступных для пользователя
-    const device = await Device.findOne( { id: user.device } )
+    const device = await Device.findOne( { _id: user.device } )
     //Формируем обновленный список точек входа, доступных для пользователя
     const deviceInfo = getDeviceInfo( req, device )
     //Обновляем информацию в базе данных
-    const updating = await Device.updateOne( { id: user.device }, deviceInfo.data, { multi: false } )
+    const updating = await Device.updateOne( { _id: user.device }, deviceInfo.data, { multi: false } )
 
     //Если данные не были успешно обновлены, возвращаем сообщение об ошибке
     if( !updating ) {
       return res.status( 400 ).json( {
         message: 'Нам не удалось обновить информацию о вашем устройстве, пожалуйста попробуйте позже',
-        userId: user.id,
+        userId: user._id,
         type: 'confirm-password'
       } )
     }
@@ -348,7 +344,7 @@ router.post( '/update_device', async ( req: Request<{ userId: string, password: 
     if( !deleteRequest ) {
       return res.status( 400 ).json( {
         message: 'При удалении сессии на подтверждение пароля и добавление нового устройства произошла ошибка!',
-        userId: user.id,
+        userId: user._id,
         type: 'confirm-password'
       } )
     }

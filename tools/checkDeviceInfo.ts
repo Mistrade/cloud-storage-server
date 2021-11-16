@@ -2,8 +2,7 @@ import { UserModel } from '../models/User'
 import { UpdateDevice, UpdateDeviceRequestModel } from '../models/UpdateDeviceRequest'
 
 export const checkDeviceInfo = async (user: UserModel) => {
-  const item: UpdateDeviceRequestModel | null = await UpdateDevice.findOne( { userId: user.id } )
-  console.log(item)
+  const item: UpdateDeviceRequestModel | null = await UpdateDevice.findOne( { userId: user._id } )
 
   if( !item ) {
 

@@ -98,7 +98,7 @@ export const checkTokens = async ( req: Request<any>, res: Response<any>, action
   }
 
   const { email, id } = jwt.decode( refreshToken ) as Token
-  const user: UserModel | null = await User.findOne( { email, id } )
+  const user: UserModel | null = await User.findOne( { email, _id: id } )
 
 
   if( !user ) {
