@@ -8,6 +8,8 @@ import { Device, DeviceModel } from '../../models/Device'
 import { checkDeviceInfo } from '../../tools/checkDeviceInfo'
 import { getDeviceInfo } from '../../tools/getDeviceInfo'
 import { createSession } from '../../tools/createSession'
+import jwt from 'jsonwebtoken'
+import { Token } from '../../routes/auth.routes'
 
 export const loginResolver = async ( parent: any, args: any, context: { req: Request<{ email: string, password: string }>, res: Response } ) => {
   const { req, res } = context

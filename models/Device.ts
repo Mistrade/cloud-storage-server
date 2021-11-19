@@ -1,4 +1,5 @@
 import { Schema, model } from 'mongoose'
+import { LastLoginMongooseSchema } from './User'
 
 export interface DeviceModel {
   deviceInfo: Array<UserDeviceInfoModel>,
@@ -47,7 +48,7 @@ export interface DeviceProcessorProps {
 const DeviceSchema = new Schema<DeviceModel>( {
   deviceInfo: [{
     type: {
-      userAgent: { type: String || null, },
+      userAgent: { type: String || null },
       browser: {
         type: {
           name: { type: String || null || undefined },
@@ -78,12 +79,14 @@ const DeviceSchema = new Schema<DeviceModel>( {
         type: {
           architecture: { type: String || null || undefined }
         }
-      }
+      },
+      lastLogin: { type: LastLoginMongooseSchema || null, default: null }
     }
   }],
   ipAddressList: [{
     type: {
-      ip: { type: String || null }
+      ip: { type: String || null },
+      lastLogin: { type: LastLoginMongooseSchema || null, default: null }
     }
   }]
 } )

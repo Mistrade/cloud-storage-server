@@ -6,6 +6,5 @@ export const ErrorSchemas = new GraphQLObjectType( {
     message: { type: new GraphQLNonNull( GraphQLString ) },
     userId: { type: GraphQLString },
     type: { type: GraphQLString },
-    date: { type: GraphQLString }
   } ),
 } )

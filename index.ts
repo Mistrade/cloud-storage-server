@@ -1,3 +1,4 @@
+import 'reflect-metadata'
 import express from 'express'
 import mongoose from 'mongoose'
 import { authRouter } from './routes/auth.routes'
@@ -5,6 +6,12 @@ import config from 'config'
 import cors from 'cors'
 import { graphqlHTTP } from 'express-graphql'
 import GraphSchema from './graph'
+import {
+  AuthorizationResolver,
+  DeviceInfoResolver,
+  GraphUserResolver
+} from './graph/Schemas/DefaultSchemas/User'
+import { buildSchema } from 'type-graphql'
 
 const app = express()
 const PORT = config.get( 'ServerPort' )
@@ -18,8 +25,10 @@ app.use( cors( {
 } ) )
 
 
-app.use( '/graphql', ( req, res ) => ( graphqlHTTP( {
-  schema: GraphSchema,
+app.use( '/graphql', async ( req, res ) => ( graphqlHTTP( {
+  schema: await buildSchema( {
+    resolvers: [GraphUserResolver, AuthorizationResolver, DeviceInfoResolver]
+  } ),
   graphiql: true,
   context: {
     req, res
